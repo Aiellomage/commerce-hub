@@ -22,7 +22,12 @@ class StoreFactory extends Factory
             'name' => fake()->company(),
             'code' => fake()->unique()->lexify('store_????'),
             'magento_url' => fake()->url(),
-            'magento_token' => Str::random(32),
+            'magento_credentials' => [
+                'consumer_key' => Str::random(32),
+                'consumer_secret' => Str::random(32),
+                'access_token' => Str::random(32),
+                'access_token_secret' => Str::random(32),
+            ],
             'is_active' => true,
         ];
     }

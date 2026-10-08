@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['name', 'code', 'magento_url', 'magento_token', 'is_active'])]
-#[Hidden(['magento_token'])]
+#[Fillable(['name', 'code', 'magento_url', 'magento_credentials', 'is_active'])]
+#[Hidden(['magento_credentials'])]
 class Store extends Model
 {
     /** @use HasFactory<StoreFactory> */
@@ -25,7 +25,7 @@ class Store extends Model
     protected function casts(): array
     {
         return [
-            'magento_token' => 'encrypted',
+            'magento_credentials' => 'encrypted:array',
             'is_active' => 'boolean',
         ];
     }

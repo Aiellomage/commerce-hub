@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Arr;
 
 class DatabaseSeeder extends Seeder
 {
@@ -33,6 +34,8 @@ class DatabaseSeeder extends Seeder
             Store::factory()->inactive()->create(['name' => 'Boutique France', 'code' => 'fr_main']),
         ]);
 
+        $this->seedMagentoDevStore();
+
         foreach ($stores as $store) {
             $products = Product::factory()->count(50)->for($store)->create();
             Product::factory()->count(5)->disabled()->for($store)->create();
@@ -41,6 +44,25 @@ class DatabaseSeeder extends Seeder
             $this->seedOrders($store, $products);
             $this->seedSyncRuns($store);
         }
+    }
+
+    /**
+     * Create the store connected to the local Magento instance, when its credentials are configured.
+     */
+    private function seedMagentoDevStore(): void
+    {
+        $config = config('services.magento.dev_store');
+
+        if (blank($config['url']) || blank($config['consumer_key'])) {
+            return;
+        }
+
+        Store::factory()->create([
+            'name' => 'Magento locale',
+            'code' => 'magento_dev',
+            'magento_url' => $config['url'],
+            'magento_credentials' => Arr::except($config, 'url'),
+        ]);
     }
 
     /**
