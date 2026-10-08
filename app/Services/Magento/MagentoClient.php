@@ -2,7 +2,8 @@
 
 namespace App\Services\Magento;
 
-use App\Models\Store;
+use App\Services\Magento\Data\MagentoOrder;
+use App\Services\Magento\Data\MagentoProduct;
 use Carbon\CarbonInterface;
 use GuzzleHttp\Subscriber\Oauth\Oauth1;
 use Illuminate\Http\Client\ConnectionException;
@@ -29,58 +30,49 @@ class MagentoClient
     ) {}
 
     /**
-     * Create a client for the given store, using the HTTP settings from config/services.php.
-     */
-    public static function forStore(Store $store): self
-    {
-        $caBundle = config('services.magento.ca_bundle');
-
-        return new self(
-            baseUrl: $store->magento_url,
-            credentials: $store->magento_credentials,
-            verify: $caBundle ? base_path($caBundle) : true,
-            timeout: config('services.magento.timeout'),
-        );
-    }
-
-    /**
      * Fetch one page of products, optionally only those updated since the given date.
      *
-     * @return array{items: array<int, array<string, mixed>>, total_count: int}
+     * @return array{items: array<int, MagentoProduct>, total_count: int}
      */
     public function products(int $page = 1, int $pageSize = 100, ?CarbonInterface $updatedSince = null): array
     {
-        return $this->search('products', $page, $pageSize, $updatedSince);
+        $result = $this->search('products', $page, $pageSize, $updatedSince);
+
+        return ['items' => MagentoProduct::collect($result['items']), 'total_count' => $result['total_count']];
     }
 
     /**
      * Fetch one page of orders, optionally only those updated since the given date.
      *
-     * @return array{items: array<int, array<string, mixed>>, total_count: int}
+     * @return array{items: array<int, MagentoOrder>, total_count: int}
      */
     public function orders(int $page = 1, int $pageSize = 100, ?CarbonInterface $updatedSince = null): array
     {
-        return $this->search('orders', $page, $pageSize, $updatedSince);
+        $result = $this->search('orders', $page, $pageSize, $updatedSince);
+
+        return ['items' => MagentoOrder::collect($result['items']), 'total_count' => $result['total_count']];
     }
 
     /**
      * Iterate over every product, loading one page at a time.
      *
-     * @return LazyCollection<int, array<string, mixed>>
+     * @return LazyCollection<int, MagentoProduct>
      */
     public function allProducts(int $pageSize = 100, ?CarbonInterface $updatedSince = null): LazyCollection
     {
-        return $this->paginate('products', $pageSize, $updatedSince);
+        return $this->paginate('products', $pageSize, $updatedSince)
+            ->map(fn (array $item) => MagentoProduct::from($item));
     }
 
     /**
      * Iterate over every order, loading one page at a time.
      *
-     * @return LazyCollection<int, array<string, mixed>>
+     * @return LazyCollection<int, MagentoOrder>
      */
     public function allOrders(int $pageSize = 100, ?CarbonInterface $updatedSince = null): LazyCollection
     {
-        return $this->paginate('orders', $pageSize, $updatedSince);
+        return $this->paginate('orders', $pageSize, $updatedSince)
+            ->map(fn (array $item) => MagentoOrder::from($item));
     }
 
     /**
@@ -99,7 +91,11 @@ class MagentoClient
             do {
                 $result = $this->search($endpoint, $page, $pageSize, $updatedSince);
 
-                yield from $result['items'];
+                // A plain yield keeps keys growing across pages; "yield from" would restart them at 0
+                // on every page and ->all() would silently keep only the last page.
+                foreach ($result['items'] as $item) {
+                    yield $item;
+                }
 
                 $lastPage = (int) ceil($result['total_count'] / $pageSize);
                 $page++;
