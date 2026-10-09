@@ -73,6 +73,22 @@ class MagentoClientTest extends TestCase
         });
     }
 
+    public function test_results_are_sorted_by_updated_at_with_entity_id_as_tie_breaker(): void
+    {
+        Http::fake(['*' => Http::response(['items' => [], 'total_count' => 0])]);
+
+        $this->client()->products();
+
+        Http::assertSent(function (Request $request) {
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return $query['searchCriteria']['sortOrders'] === [
+                ['field' => 'updated_at', 'direction' => 'ASC'],
+                ['field' => 'entity_id', 'direction' => 'ASC'],
+            ];
+        });
+    }
+
     public function test_temporary_errors_are_retried(): void
     {
         Http::fake(['*' => Http::sequence()

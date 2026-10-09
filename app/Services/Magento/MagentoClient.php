@@ -106,6 +106,9 @@ class MagentoClient
     /**
      * Call a Magento search endpoint ordered by updated_at, oldest first.
      *
+     * entity_id breaks the ties: many rows share the same updated_at (an import, a mass action) and MySQL
+     * returns ties in no fixed order, so with OFFSET pagination some rows would show up on two pages and others on none.
+     *
      * @return array{items: array<int, array<string, mixed>>, total_count: int}
      */
     private function search(string $endpoint, int $page, int $pageSize, ?CarbonInterface $updatedSince): array
@@ -113,6 +116,8 @@ class MagentoClient
         $query = [
             'searchCriteria[sortOrders][0][field]' => 'updated_at',
             'searchCriteria[sortOrders][0][direction]' => 'ASC',
+            'searchCriteria[sortOrders][1][field]' => 'entity_id',
+            'searchCriteria[sortOrders][1][direction]' => 'ASC',
             'searchCriteria[pageSize]' => $pageSize,
             'searchCriteria[currentPage]' => $page,
         ];
